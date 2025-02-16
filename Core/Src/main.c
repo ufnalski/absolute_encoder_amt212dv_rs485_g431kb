@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "math.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -32,6 +33,12 @@ typedef enum
 {
 	AMT21_DATA_OK = 0x00U, AMT21_DATA_ERROR = 0x01U
 } AMT21Data_StatusTypeDef;
+
+typedef union
+{
+	uint16_t uint16;
+	int16_t int16;
+} Uint16toInt16DecoderTypeDef;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -43,7 +50,7 @@ typedef enum
 #define AMT21_TIMEOUT 1 // us
 
 #define TOGGLE_ON_SUCCESS
-// #define TOGGLE_ON_FAILURE
+//#define TOGGLE_ON_FAILURE
 
 /* USER CODE END PD */
 
@@ -70,7 +77,9 @@ uint16_t amt21_position;
 
 uint8_t amt21_turns_data[2];
 AMT21Data_StatusTypeDef amt21_turns_data_ok = AMT21_DATA_ERROR;
-uint16_t amt21_turns;
+int16_t amt21_turns;
+
+Uint16toInt16DecoderTypeDef uint16_to_int16;
 
 uint32_t AmtSoftTimer;
 
@@ -156,6 +165,7 @@ int main(void)
 
 			HAL_UART_Transmit(AMT21_UART_HANDLE, ask_for_position,
 					sizeof(ask_for_position), AMT21_TIMEOUT);
+			memset(amt21_position_data, 0x0000, 2);
 			r485_receive_status = HAL_UART_Receive(AMT21_UART_HANDLE,
 					amt21_position_data, 2, AMT21_TIMEOUT);
 
@@ -182,6 +192,7 @@ int main(void)
 
 			HAL_UART_Transmit(AMT21_UART_HANDLE, ask_for_turns,
 					sizeof(ask_for_turns), AMT21_TIMEOUT);
+			memset(amt21_turns_data, 0x0000, 2);
 			r485_receive_status = HAL_UART_Receive(AMT21_UART_HANDLE,
 					amt21_turns_data, 2, AMT21_TIMEOUT);
 
@@ -192,8 +203,9 @@ int main(void)
 #ifdef TOGGLE_ON_SUCCESS
 				HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 #endif
-				amt21_turns = ((uint16_t) (amt21_turns_data[0])
-						| (((uint16_t) (amt21_turns_data[1])) << 8)) & 0x3FFF;
+				uint16_to_int16.uint16 = ((uint16_t) (amt21_turns_data[0])
+						| (((uint16_t) (amt21_turns_data[1])) << 8)) << 2;
+				amt21_turns = uint16_to_int16.int16 / 4;
 				printf("Number of turns: %d\r\n\r\n", amt21_turns);
 			}
 			else
